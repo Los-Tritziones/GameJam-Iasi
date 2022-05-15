@@ -1,5 +1,6 @@
 # AI pentru navele inamice (acestea urmaresc targetul, trag in el, si au grija sa nu se izbeasca in el)
-```
+
+```cs
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
