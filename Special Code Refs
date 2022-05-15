@@ -1,0 +1,202 @@
+# AI pentru navele inamice (acestea urmaresc targetul, trag in el, si au grija sa nu se izbeasca in el)
+```
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class DestroyerAlfa : MonoBehaviour
+{
+    public Transform target;
+    public Info info;
+    public GameObject RocketCon,RocketMultiCon,laserFast,bucati;
+    public Transform firePoz; 
+    public Transform[] firePozLaserFast;
+    public Rigidbody rb;
+    public float reloadTime=4,rocketSpeed=25;
+    public float reloadTimeLaserFast=0.3f;
+    /////////////movements//////////
+    public float speed=10,rotationSpeed=5;
+    public float unghi,distanta;
+    public int id;
+    void Start()
+    {
+        
+    }
+    public void Launch(int idd)
+    {
+        id=idd;
+        StartCoroutine(tinteste());
+        StartCoroutine(tintesteLaserFast());
+        StartCoroutine(urmareste());
+    }
+    public void Launch(int idd,Transform SaMeargaAiciFirstly)
+    {
+        id=idd;
+        StartCoroutine(tinteste());
+        StartCoroutine(tintesteLaserFast());
+        StartCoroutine(urmareste());
+        StartCoroutine(mersCaSaIasa(SaMeargaAiciFirstly));//merge la un punct si de abia dupa trage in target
+    }
+    IEnumerator mersCaSaIasa(Transform SaMeargaAiciFirstly)
+    {
+        target=SaMeargaAiciFirstly;
+        yield return new WaitForSeconds(8);
+        target=null;
+    }
+    IEnumerator tintesteLaserFast()
+    {
+        while(info.hp>0)
+        {
+            for(float i=0;i<=reloadTimeLaserFast;i+=Time.deltaTime)
+                yield return null;
+            while(target==null)
+                yield return null;
+            if(unghi<60 && distanta<700)
+            Shoot();
+        }
+        yield break;
+    }
+    IEnumerator tinteste()
+    {
+        while(info.hp>0)
+        {
+            for(float i=0;i<=reloadTime;i+=Time.deltaTime)
+                yield return null;
+            while(target==null)
+                yield return null;
+            //ShootRConvex();
+            ShootRMultiConvex();
+        }
+        yield break;
+
+
+    }
+    IEnumerator urmareste()
+    {
+        while(info.hp>0)
+        {
+            //float sin=Mathf.Sin(Time.time);
+            //Vector3 forta=transform.up*sin*Time.deltaTime;
+           // if(sin<0)
+           // forta=forta*2;
+            while(target==null)
+            {
+                target=Spawner.Instance.GetTargetBun();
+                yield return null;
+            }
+            unghi=GetAngle(transform.forward*3,target.position-transform.position);
+            distanta=Vector3.Distance(transform.position,target.position);
+            rb.angularVelocity*=0.1f;
+            if(unghi>3)
+            {
+                //incetinim...
+                //si rotim
+                rb.AddForce(-rb.velocity*0.9f);
+                rotate(rotationSpeed*2);
+
+            }
+            else
+            {
+               // Debug.Log(rb.velocity.magnitude);
+                //merge inainte
+                if(rb.velocity.magnitude<speed*0.75f && distanta>15)
+                {
+                    rb.AddForce(transform.forward*speed*rb.mass);
+                }
+                else
+                    rb.AddForce(-transform.forward*speed*0.1f*rb.mass);
+
+            }
+            //rb.AddForce(forta,ForceMode.Impulse);
+           //rotate();
+           
+            
+            yield return null;
+        }
+        yield return null;
+    }
+    void rotate(float rotationSpeed)
+    {
+        Transform partToRotate=transform;
+        Vector3 dir =target.position - transform.position;
+        Quaternion lookRotation = Quaternion.LookRotation(dir);
+        Vector3 rotation = Quaternion.Lerp(partToRotate.rotation, lookRotation, Time.deltaTime * rotationSpeed).eulerAngles;
+        partToRotate.rotation =Quaternion.Euler(rotation.x,rotation.y,rotation.z);
+    }
+    
+    void ShootRConvex()
+    {
+        GameObject X=Instantiate(RocketCon,firePoz.position,Quaternion.identity);
+        X.GetComponent<Info>().proprietar=gameObject;
+        X.GetComponent<RocketConvex>().speed=rocketSpeed;
+        X.GetComponent<RocketConvex>().unghiLaRotund=180;
+        X.GetComponent<RocketConvex>().targetPoz=target.position;
+        X.GetComponent<Info>().damage=info.damage;
+        Destroy(X,30);
+    }
+    void ShootRMultiConvex()
+    {
+        GameObject X=Instantiate(RocketMultiCon,firePoz.position,Quaternion.identity);
+        X.GetComponent<Info>().proprietar=gameObject;
+        RocketMulticonvex R=X.GetComponent<RocketMulticonvex>();
+        R.speed=rocketSpeed;
+        R.unghiLaRotund=180;
+        R.targetPoz=target.position;
+        R.nr=6;
+        X.GetComponent<Info>().damage=info.damage;
+        Destroy(X,30);
+    }
+    int nrlaser;
+    public float ss=10;
+    void Shoot()
+    {
+        Vector3 scattershot;
+        scattershot.x=Random.Range(-ss,ss);
+        scattershot.y=Random.Range(-ss,ss);
+        scattershot.z=Random.Range(-ss,ss);
+        nrlaser++;
+        nrlaser=nrlaser%2;
+        GameObject X=Instantiate(laserFast,firePozLaserFast[nrlaser].position,transform.rotation);
+        X.GetComponent<Info>().damage=info.damage;
+        X.GetComponent<LaserFast>().Launch(scattershot);
+        //X.transform.LookAt(target);
+        X.GetComponent<Info>().proprietar=gameObject;
+        Destroy(X,5);
+    }
+    public float GetAngle(Vector3 a,Vector3 b)
+    {
+        if(a==b)
+        return 0;
+        return Mathf.Rad2Deg*Mathf.Acos((a.x*b.x+a.y*b.y+a.z*b.z)/ (Mathf.Pow(a.x*a.x+a.y*a.y+a.z*a.z,0.5f)*Mathf.Pow(b.x*b.x+b.y*b.y+b.z*b.z,0.5f)));
+    }
+
+    // Update is called once per frame
+    void Update()
+    {
+       // Debug.DrawLine(transform.position,transform.position+transform.forward*5);
+       // Debug.DrawLine(transform.position,target.position);
+        if(info.hp<=0)
+        {
+            info.hp=0;
+            if(info.distrus==false)
+            {
+                info.distrus=true;
+                bucati.transform.SetParent(Spawner.Instance.CosDeGunoi);
+                Destroy(bucati,30);
+                bucati.SetActive(true);
+                foreach(Transform obj in bucati.transform)
+                {
+                    if(obj.gameObject.TryGetComponent<Rigidbody>(out Rigidbody rb2))
+                    {
+                        rb2.AddExplosionForce(70,transform.position,10,0,ForceMode.Impulse);
+                    }
+                }
+                Destroy(gameObject);
+                Spawner.Instance.deleteRau(gameObject);
+                //restul de cod pentru distrugere
+            }
+        }
+       // unghi=GetAngle(transform.forward-transform.position,target.position-transform.position);
+    }
+}
+```
